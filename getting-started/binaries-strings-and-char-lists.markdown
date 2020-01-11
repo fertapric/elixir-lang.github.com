@@ -22,7 +22,7 @@ In this chapter, we will understand what binaries are, how they associate with s
 
 A string is a UTF-8 encoded binary. In order to understand exactly what we mean by that, we need to understand the difference between bytes and code points.
 
-The Unicode standard assigns code points to many of the characters we know. For example, the letter `a` has code point `97` while the letter `ł` has code point `322`. When writing the string `"hełło"` to disk, we need to convert this sequence of characters to bytes. If we adopted a rule that said one byte represents one code point, we wouldn't be able to write `"hełło"`, because it uses the code point `322` for `ł`, and one byte can only represent a number from `0` to `255`. But of course, given you can actually read `"hełło"` on your screen, it must be represented *somehow*. That's where encodings come in.
+The Unicode standard assigns code points (i.e. numbers) to many of the characters we know. For example, the letter `a` has code point `97` while the letter `ł` has code point `322`. When writing the string `"hełło"` to disk, we need to convert this sequence of characters to bytes. If we adopted a rule that said one byte represents one code point, we wouldn't be able to write `"hełło"`, because it uses the code point `322` for `ł`, and one byte can only represent a number from `0` to `255`. But of course, given you can actually read `"hełło"` on your screen, it must be represented *somehow*. That's where encodings come in.
 
 When representing code points in bytes, we need to encode them somehow. Elixir chose the UTF-8 encoding as its main and default encoding. When we say a string is a UTF-8 encoded binary, we mean a string is a bunch of bytes organized in a way to represent certain code points, as specified by the UTF-8 encoding.
 
@@ -50,9 +50,9 @@ iex> ?ł
 322
 ```
 
-These can be used anywhere you want to refer to a characters codepoint.
+These can be used anywhere you want to refer to a character's codepoint.
 
-You can also use the functions in [the `String` module](https://hexdocs.pm/elixir/String.html) to split a string in its individual characters, each one as a string of length 1:
+You can also use the functions in [the `String` module](https://hexdocs.pm/elixir/String.html) to split a string into its individual characters, each one as a string of length 1:
 
 ```iex
 iex> String.codepoints("hełło")
@@ -102,7 +102,7 @@ iex> IO.inspect("hełło", binaries: :as_binaries)
 <<104, 101, 197, 130, 197, 130, 111>>
 ```
 
-Each number given to a binary is meant to represent a byte and therefore must go up to 255. Binaries allow modifiers to be given to store numbers bigger than 255 or to convert a code point to its UTF-8 representation:
+Each number given to a binary is meant to represent a byte (and therefore must be between 0 and 255). Binaries allow modifiers to be given to store numbers bigger than 255 or to convert a code point to its UTF-8 representation:
 
 ```iex
 iex> <<255>>
@@ -183,11 +183,50 @@ iex> is_list 'hełło'
 true
 iex> 'hello'
 'hello'
+iex> 'hello' == [104, 101, 108, 108, 111]
+true
 iex> List.first('hello')
 104
 ```
 
-You can see that, instead of containing bytes, a charlist contains the code points of the characters between single-quotes (note that by default IEx will only output code points if any of the integers is outside the ASCII range). So while double-quotes represent a string (i.e. a binary), single-quotes represent a charlist (i.e. a list).
+Note that by default IEx will only output code points if any of the integers is outside the ASCII range. If you need to inspect the numerical contents of a character list, you can use the same null-byte concatenation trick we saw used with binaries, but we have to alter its syntax for working with lists:
+
+```iex
+iex> 'hello' ++ [0]
+[104, 101, 108, 108, 111, 0]
+```
+
+Alternatively, we can inspect the numerical contents of any character list by specifing the `charlists: :as_lists` option to `IO.inspect/2`:
+
+```iex
+iex> IO.inspect('hello', charlists: :as_lists)
+[104, 101, 108, 108, 111]
+'hello'
+```
+
+You can see that a charlist contains the code points (i.e. the integers) representing the characters, whereas the the numbers in the binary representation are always between 0 and 255 (because that is the limit of what a byte can represent):
+
+```iex
+iex> IO.inspect('hello', charlists: :as_lists)
+[104, 101, 108, 108, 111]
+'hello'
+iex> IO.inspect("hello", binaries: :as_binaries)
+<<104, 101, 108, 108, 111>>
+"hello"
+```
+
+Because single-quoted values are in fact lists, they can make for some curious behavior when they are used where you might otherwise expect a string (e.g. as map keys):
+
+```iex
+iex> map = %{'foo' => "bar"}
+%{'foo' => "bar"}
+iex> Map.get(map, 'foo')
+"bar"
+iex> Map.get(map, [102, 111, 111])
+"bar"
+iex> Map.get(map, "foo")
+nil
+```
 
 In practice, charlists are used mostly when interfacing with Erlang, in particular old libraries that do not accept binaries as arguments. You can convert a charlist to a string and back by using the `to_string/1` and `to_charlist/1` functions:
 
